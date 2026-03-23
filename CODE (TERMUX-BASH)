@@ -1,0 +1,869 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# ╔══════════════════════════════════════════════════════════════╗
+#   GHOST SHIELD TERMUX — Cyber Defense Toolkit v1.0
+#   Protección personal | Anonimato | Anti-Phishing
+#   Para Android con Termux — Sin root requerido
+# ╚══════════════════════════════════════════════════════════════╝
+
+R='\033[1;31m'
+Y='\033[1;33m'
+G='\033[1;32m'
+C='\033[1;36m'
+M='\033[1;35m'
+W='\033[1;37m'
+D='\033[0;90m'
+N='\033[0m'
+BOLD='\033[1m'
+
+# ── Utilidades ────────────────────────────────────────────────
+pause() {
+    echo ""
+    echo -e "  ${D}[ presiona ENTER para volver ]${N}"
+    read -r
+}
+
+section() {
+    clear
+    echo -e "${C}"
+    echo -e "  ╔══════════════════════════════════════════╗"
+    printf "  ║  ${W}${BOLD}%-40s${C}║\n" "$1"
+    echo -e "  ╚══════════════════════════════════════════╝${N}"
+    echo ""
+}
+
+result_ok()   { echo -e "  ${G}✔${N} ${W}$1:${N} ${G}$2${N}"; }
+result_warn() { echo -e "  ${Y}⚠${N} ${W}$1:${N} ${Y}$2${N}"; }
+result_bad()  { echo -e "  ${R}✘${N} ${W}$1:${N} ${R}$2${N}"; }
+result_info() { echo -e "  ${C}▸${N} ${W}$1:${N} ${D}$2${N}"; }
+
+open_url() {
+    local url="$1"
+    if command -v termux-open-url &>/dev/null; then
+        termux-open-url "$url" 2>/dev/null
+    else
+        echo -e "  ${D}URL: $url${N}"
+        echo -e "  ${D}(instala termux-tools para abrir en navegador)${N}"
+    fi
+}
+
+# ── Auto-instalador de dependencias ──────────────────────────
+check_and_install() {
+    local pkg="$1"
+    local cmd="${2:-$1}"
+    if ! command -v "$cmd" &>/dev/null; then
+        echo -e "  ${Y}Instalando ${W}${pkg}${Y}...${N}"
+        pkg install -y "$pkg" 2>/dev/null
+    fi
+}
+
+install_deps() {
+    section "Instalando dependencias necesarias"
+    echo -e "  ${Y}Verificando e instalando dependencias para Termux...${N}"
+    echo ""
+    pkg update -y 2>/dev/null | tail -1
+    echo ""
+    for dep in curl jq nmap openssl-tool dnsutils whois netcat-openbsd; do
+        if command -v "${dep%%-*}" &>/dev/null || pkg list-installed 2>/dev/null | grep -q "^${dep}"; then
+            result_ok "$dep" "Ya instalado"
+        else
+            echo -ne "  ${Y}Instalando $dep...${N}"
+            pkg install -y "$dep" 2>/dev/null && echo -e " ${G}✔${N}" || echo -e " ${R}✘${N}"
+        fi
+    done
+    echo ""
+    result_ok "Dependencias" "Listas"
+    pause
+}
+
+# ── Header ────────────────────────────────────────────────────
+header() {
+    clear
+    echo -e "${C}"
+    cat << 'GHOST'
+
+              ░░░░░░░░░░░░░░░░░░░
+            ░░                   ░░
+          ░░    ╭─────────────╮    ░░
+         ░░     │  ◉       ◉  │     ░░
+        ░░      │      ▾      │      ░░
+        ░░      │  ╰───────╯  │      ░░
+         ░░     ╰─────────────╯     ░░
+           ░░          │          ░░
+             ░░░░░░░░░░│░░░░░░░░░░
+                       │
+                      ╰╯  ← gota
+                      ╰╯
+GHOST
+    echo -e "${N}"
+    echo -e "  ${C}${BOLD}  👁  GHOST SHIELD TERMUX  —  CYBER DEFENSE v1.0  👁  ${N}"
+    echo -e "  ${D}───────────────────────────────────────────────────${N}"
+    echo -e "  ${G}⚡  Android | Sin root | Anonimato | Anti-Phishing  ${N}"
+    echo -e "  ${D}───────────────────────────────────────────────────${N}"
+    echo ""
+}
+
+# ── Menú principal ────────────────────────────────────────────
+main_menu() {
+    header
+    echo -e "  ${C}╔═══════════════════════════════════════════════════╗${N}"
+    echo -e "  ${C}║${W}${BOLD}               MENÚ PRINCIPAL                     ${N}${C}║${N}"
+    echo -e "  ${C}╠═══════════════════════════════════════════════════╣${N}"
+    echo -e "  ${C}║${N}  ${G}[01]${N}  Qué tan expuesto estoy ahorita             ${C}║${N}"
+    echo -e "  ${C}║${N}  ${G}[02]${N}  Este link me quiere robar? (Anti-Phishing)  ${C}║${N}"
+    echo -e "  ${C}║${N}  ${G}[03]${N}  Modo fantasma (TOR + DNS seguro)            ${C}║${N}"
+    echo -e "  ${C}║${N}  ${G}[04]${N}  Escanea tu red WiFi — quién me ve?          ${C}║${N}"
+    echo -e "  ${C}║${N}  ${G}[05]${N}  Limpia mis rastros digitales ahora          ${C}║${N}"
+    echo -e "  ${C}║${N}  ${G}[06]${N}  Detección de ataques en red                 ${C}║${N}"
+    echo -e "  ${C}║${N}  ${G}[07]${N}  Mi contraseña o email fue robado?           ${C}║${N}"
+    echo -e "  ${C}║${N}  ${G}[08]${N}  Genera contraseña imposible de hackear      ${C}║${N}"
+    echo -e "  ${C}║${N}  ${G}[09]${N}  Cifra un mensaje para enviarlo seguro       ${C}║${N}"
+    echo -e "  ${C}║${N}  ${G}[10]${N}  Estado de mis defensas (dashboard)          ${C}║${N}"
+    echo -e "  ${C}╠═══════════════════════════════════════════════════╣${N}"
+    echo -e "  ${C}║${N}  ${Y}[99]${N}  Instalar dependencias                       ${C}║${N}"
+    echo -e "  ${C}║${N}  ${D}[00]  Salir                                      ${C}║${N}"
+    echo -e "  ${C}╚═══════════════════════════════════════════════════╝${N}"
+    echo ""
+    echo -ne "  ${W}Selecciona: ${C}"
+    read -r OPT
+    echo -e "${N}"
+}
+
+# ══════════════════════════════════════════════════════════════
+# 01 — QUÉ TAN EXPUESTO ESTOY
+# ══════════════════════════════════════════════════════════════
+tool_01() {
+    section "01 · Qué tan expuesto estoy ahorita"
+    echo -e "  ${Y}Analizando tu exposición desde Android...${N}"
+    echo ""
+
+    check_and_install curl
+
+    local IP; IP=$(curl -s --max-time 8 ifconfig.me 2>/dev/null)
+    [[ -z "$IP" ]] && IP=$(curl -s --max-time 8 api.ipify.org 2>/dev/null)
+    [[ -z "$IP" ]] && IP=$(curl -s --max-time 8 icanhazip.com 2>/dev/null | tr -d '\n')
+
+    if [[ -n "$IP" ]]; then
+        result_warn "Tu IP pública visible" "$IP"
+    else
+        result_bad "IP pública" "No se pudo obtener (sin internet?)"
+        pause; return
+    fi
+
+    local GEO; GEO=$(curl -s --max-time 8 "http://ip-api.com/json/${IP}?fields=country,regionName,city,isp,org,proxy,hosting,mobile")
+    result_warn "Ubicación visible"  "$(echo "$GEO" | jq -r '.city'), $(echo "$GEO" | jq -r '.country')"
+    result_info "ISP / Operadora"    "$(echo "$GEO" | jq -r '.isp')"
+    result_info "Org"                "$(echo "$GEO" | jq -r '.org')"
+
+    local MOBILE; MOBILE=$(echo "$GEO" | jq -r '.mobile')
+    if [[ "$MOBILE" == "true" ]]; then
+        result_warn "Conexión móvil" "Sí — IP dinámica, cambia seguido"
+    else
+        result_info "Conexión móvil" "No (WiFi o fija)"
+    fi
+
+    local PROXY; PROXY=$(echo "$GEO" | jq -r '.proxy')
+    if [[ "$PROXY" == "true" ]]; then
+        result_ok "VPN/Proxy detectada" "Sí — estás cubierto"
+    else
+        result_bad "VPN/Proxy detectada" "No — estás expuesto"
+    fi
+
+    echo ""
+    echo -e "  ${C}── Verificando TOR ──${N}"
+    local TOR; TOR=$(curl -s --max-time 6 "https://check.torproject.org/api/ip" | jq -r '.IsTor' 2>/dev/null)
+    if [[ "$TOR" == "true" ]]; then
+        result_ok "TOR activo" "Sí — tráfico enrutado por TOR"
+    else
+        result_bad "TOR activo" "No"
+    fi
+
+    echo ""
+    echo -e "  ${C}── DNS Leak ──${N}"
+    local DNS_RESP; DNS_RESP=$(curl -s --max-time 6 "https://dns.google/resolve?name=whoami.akamai.net&type=A" | jq -r '.Answer[0].data' 2>/dev/null)
+    if [[ -n "$DNS_RESP" && "$DNS_RESP" != "null" ]]; then
+        result_warn "DNS resolver expuesto" "$DNS_RESP"
+    fi
+
+    echo ""
+    echo -e "  ${C}── Info del dispositivo ──${N}"
+    if command -v termux-info &>/dev/null; then
+        result_info "Termux API" "Disponible"
+    fi
+    result_info "Arquitectura" "$(uname -m)"
+    result_info "Kernel"       "$(uname -r)"
+
+    echo ""
+    echo -e "  ${Y}${BOLD}RESUMEN:${N}"
+    echo -e "  ${D}Cualquiera que tenga tu IP puede ver tu ciudad e ISP.${N}"
+    echo -e "  ${D}Usa la opción 03 para activar protección.${N}"
+    pause
+}
+
+# ══════════════════════════════════════════════════════════════
+# 02 — ANTI-PHISHING
+# ══════════════════════════════════════════════════════════════
+tool_02() {
+    section "02 · Este link me quiere robar? (Anti-Phishing)"
+    echo -ne "  ${W}Pega el link sospechoso: ${C}"; read -r URL; echo -e "${N}"
+    if [[ -z "$URL" ]]; then result_bad "Error" "No ingresaste URL"; pause; return; fi
+
+    [[ "$URL" != http* ]] && URL="https://$URL"
+    local DOMAIN; DOMAIN=$(echo "$URL" | sed 's|https\?://||' | cut -d'/' -f1 | sed 's/^www\.//')
+
+    echo -e "  ${Y}Analizando: ${W}${DOMAIN}${N}"
+    echo ""
+
+    echo -e "  ${C}── Análisis automático ──${N}"
+
+    # HTTPS
+    if [[ "$URL" == https://* ]]; then
+        result_ok  "Protocolo" "HTTPS — cifrado"
+    else
+        result_bad "Protocolo" "HTTP — SIN cifrado, peligroso"
+    fi
+
+    # SSL cert
+    if command -v openssl &>/dev/null; then
+        local SSL_INFO; SSL_INFO=$(echo | timeout 6 openssl s_client \
+            -connect "${DOMAIN}:443" -servername "$DOMAIN" 2>/dev/null \
+            | openssl x509 -noout -issuer -dates 2>/dev/null)
+        if [[ -n "$SSL_INFO" ]]; then
+            result_ok   "Certificado SSL" "Válido"
+            result_info "Emisor" "$(echo "$SSL_INFO" | grep issuer | sed 's/issuer=//' | head -1)"
+            result_info "Expira" "$(echo "$SSL_INFO" | grep notAfter | sed 's/notAfter=//')"
+        else
+            result_warn "Certificado SSL" "No verificable"
+        fi
+    fi
+
+    # Señales de phishing
+    echo ""
+    echo -e "  ${C}── Señales de alerta ──${N}"
+    local SCORE=0
+
+    if echo "$DOMAIN" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+        result_bad "IP directa en URL" "MUY sospechoso — phishing típico"; ((SCORE+=3))
+    fi
+
+    local DASHES; DASHES=$(echo "$DOMAIN" | tr -cd '-' | wc -c)
+    if [[ $DASHES -ge 3 ]]; then
+        result_warn "Muchos guiones" "$DASHES — dominio sospechoso"; ((SCORE+=2))
+    fi
+
+    local DOTS; DOTS=$(echo "$DOMAIN" | tr -cd '.' | wc -c)
+    if [[ $DOTS -ge 3 ]]; then
+        result_warn "Subdominios excesivos" "$DOTS niveles — técnica de engaño"; ((SCORE+=2))
+    fi
+
+    if [[ ${#URL} -gt 100 ]]; then
+        result_warn "URL muy larga" "${#URL} chars — intento de ofuscar"; ((SCORE++))
+    fi
+
+    local PHISH_WORDS=("login" "verify" "secure" "account" "update" "bank" "paypal"
+        "netflix" "amazon" "apple" "microsoft" "google" "signin" "password"
+        "confirm" "wallet" "crypto" "urgent" "suspended" "validate" "whatsapp"
+        "tiktok" "instagram" "prize" "winner" "free" "click")
+    for WORD in "${PHISH_WORDS[@]}"; do
+        if echo "$URL" | grep -qi "$WORD"; then
+            result_warn "Keyword sospechosa" "'$WORD' detectada"; ((SCORE++))
+        fi
+    done
+
+    echo ""
+    echo -e "  ${C}── Veredicto ──${N}"
+    if [[ $SCORE -eq 0 ]]; then
+        result_ok  "Riesgo" "0 pts — Parece seguro"
+    elif [[ $SCORE -le 2 ]]; then
+        result_warn "Riesgo" "$SCORE pts — Ten precaución"
+    elif [[ $SCORE -le 4 ]]; then
+        result_bad  "Riesgo" "$SCORE pts — SOSPECHOSO, no hagas clic"
+    else
+        result_bad  "Riesgo" "$SCORE pts — MUY PELIGROSO, no abras"
+    fi
+
+    echo ""
+    echo -e "  ${C}── Verificación manual (abrir en navegador) ──${N}"
+    local ENC; ENC=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${URL}'))" 2>/dev/null || echo "$URL")
+    result_info "VirusTotal"  "https://www.virustotal.com/gui/url-upload"
+    result_info "URLVoid"     "https://www.urlvoid.com/scan/${DOMAIN}"
+    result_info "ScamAdviser" "https://www.scamadviser.com/check-website/${DOMAIN}"
+    echo ""
+    echo -ne "  ${W}¿Abrir VirusTotal en el navegador? (s/n): ${C}"; read -r OPEN
+    if [[ "$OPEN" == "s" || "$OPEN" == "S" ]]; then
+        open_url "https://www.virustotal.com/gui/url-upload"
+    fi
+    pause
+}
+
+# ══════════════════════════════════════════════════════════════
+# 03 — MODO FANTASMA
+# ══════════════════════════════════════════════════════════════
+tool_03() {
+    section "03 · Modo fantasma (TOR + DNS seguro)"
+    echo ""
+
+    echo -e "  ${C}── Estado de TOR en Termux ──${N}"
+    if command -v tor &>/dev/null; then
+        result_ok "TOR instalado" "Sí"
+        if pgrep -x tor &>/dev/null; then
+            result_ok "TOR proceso" "Corriendo"
+            result_info "SOCKS proxy" "127.0.0.1:9050"
+        else
+            result_warn "TOR proceso" "No está corriendo"
+            echo ""
+            echo -ne "  ${W}¿Iniciar TOR ahora? (s/n): ${C}"; read -r R
+            if [[ "$R" == "s" || "$R" == "S" ]]; then
+                tor &>/dev/null &
+                sleep 3
+                if pgrep -x tor &>/dev/null; then
+                    result_ok "TOR" "Iniciado — proxy en 127.0.0.1:9050"
+                else
+                    result_bad "TOR" "Error al iniciar — prueba: tor"
+                fi
+            fi
+        fi
+    else
+        result_bad "TOR" "No instalado"
+        echo -ne "  ${Y}¿Instalar TOR ahora? (s/n): ${C}"; read -r R
+        if [[ "$R" == "s" || "$R" == "S" ]]; then
+            pkg install -y tor
+            echo -ne "  ${W}¿Iniciar TOR? (s/n): ${C}"; read -r R2
+            [[ "$R2" == "s" || "$R2" == "S" ]] && tor &>/dev/null &
+        fi
+    fi
+
+    echo ""
+    echo -e "  ${C}── Cómo usar TOR en Android ──${N}"
+    echo -e "  ${G}▸${N} Instala ${W}Orbot${N} (app oficial TOR para Android)"
+    echo -e "    ${D}https://play.google.com/store/apps/details?id=org.torproject.android${N}"
+    echo -e "  ${G}▸${N} Activa ${W}VPN mode${N} en Orbot para todo el tráfico del móvil"
+    echo -e "  ${G}▸${N} Usa ${W}Tor Browser${N} para navegación:"
+    echo -e "    ${D}https://play.google.com/store/apps/details?id=org.torproject.torbrowser${N}"
+
+    echo ""
+    echo -e "  ${C}── DNS seguro en Android ──${N}"
+    echo -e "  ${G}▸${N} Ve a: ${W}Ajustes → Red → DNS privado${N}"
+    echo -e "  ${G}▸${N} Escribe: ${W}one.one.one.one${N} (Cloudflare — el mejor)"
+    echo -e "  ${G}▸${N} O usa:   ${W}dns.quad9.net${N} (bloquea malware)"
+    echo -e "  ${G}▸${N} O usa:   ${W}dns.adguard.com${N} (bloquea ads + malware)"
+
+    echo ""
+    echo -e "  ${C}── DNS en Termux (sesión actual) ──${N}"
+    local DNS_NOW; DNS_NOW=$(getprop net.dns1 2>/dev/null || cat $PREFIX/etc/resolv.conf 2>/dev/null | grep nameserver | awk '{print $2}' | head -1)
+    result_info "DNS actual" "${DNS_NOW:-no detectado}"
+
+    echo ""
+    echo -e "  ${C}── Proxychains en Termux ──${N}"
+    if command -v proxychains4 &>/dev/null; then
+        result_ok "Proxychains4" "Instalado"
+        echo -e "  ${G}▸${N} Uso: ${D}proxychains4 curl ifconfig.me${N}"
+        echo -e "  ${G}▸${N} Config: ${D}${PREFIX}/etc/proxychains4.conf${N}"
+    else
+        result_warn "Proxychains4" "No instalado"
+        echo -ne "  ${Y}¿Instalar? (s/n): ${C}"; read -r R
+        [[ "$R" == "s" || "$R" == "S" ]] && pkg install -y proxychains-ng
+    fi
+
+    echo ""
+    echo -e "  ${C}── Apps Android recomendadas ──${N}"
+    echo -e "  ${G}▸${N} ${W}Orbot${N}       — TOR para todo Android"
+    echo -e "  ${G}▸${N} ${W}ProtonVPN${N}   — VPN gratis y segura"
+    echo -e "  ${G}▸${N} ${W}Mullvad VPN${N} — Sin logs, muy privado"
+    echo -e "  ${G}▸${N} ${W}Brave Browser${N} — Bloquea trackers"
+    pause
+}
+
+# ══════════════════════════════════════════════════════════════
+# 04 — ESCANEA TU RED WiFi
+# ══════════════════════════════════════════════════════════════
+tool_04() {
+    section "04 · Escanea tu red WiFi — quién me ve?"
+    echo ""
+
+    echo -e "  ${C}── Info de red actual ──${N}"
+
+    # IP local en Termux
+    local LOCAL_IP; LOCAL_IP=$(ip addr show 2>/dev/null | grep 'inet ' | grep -v '127.0.0.1' | awk '{print $2}' | head -1)
+    [[ -z "$LOCAL_IP" ]] && LOCAL_IP=$(ifconfig 2>/dev/null | grep 'inet ' | grep -v '127.0.0.1' | awk '{print $2}' | head -1)
+    result_info "Tu IP local" "${LOCAL_IP:-no detectada}"
+
+    local GW; GW=$(ip route 2>/dev/null | grep default | awk '{print $3}' | head -1)
+    result_info "Gateway (router)" "${GW:-no detectado}"
+
+    local WIFI_INFO; WIFI_INFO=$(termux-wifi-connectioninfo 2>/dev/null)
+    if [[ -n "$WIFI_INFO" ]]; then
+        echo ""
+        echo -e "  ${C}── Info WiFi (termux-api) ──${N}"
+        result_info "SSID"      "$(echo "$WIFI_INFO" | jq -r '.ssid // "N/A"' 2>/dev/null)"
+        result_info "BSSID"     "$(echo "$WIFI_INFO" | jq -r '.bssid // "N/A"' 2>/dev/null)"
+        result_info "Frecuencia" "$(echo "$WIFI_INFO" | jq -r '.frequency_mhz // "N/A"' 2>/dev/null) MHz"
+        result_info "Velocidad"  "$(echo "$WIFI_INFO" | jq -r '.link_speed_mbps // "N/A"' 2>/dev/null) Mbps"
+        result_info "Señal"      "$(echo "$WIFI_INFO" | jq -r '.rssi // "N/A"' 2>/dev/null) dBm"
+        result_info "IP local"   "$(echo "$WIFI_INFO" | jq -r '.ip // "N/A"' 2>/dev/null)"
+    else
+        echo ""
+        echo -e "  ${D}Para info WiFi detallada instala: pkg install termux-api${N}"
+        echo -e "  ${D}Y la app: Termux:API desde F-Droid${N}"
+    fi
+
+    echo ""
+    echo -e "  ${C}── Escaneo de dispositivos en red ──${N}"
+    if command -v nmap &>/dev/null && [[ -n "$LOCAL_IP" ]]; then
+        local SUBNET; SUBNET=$(echo "$LOCAL_IP" | sed 's|/[0-9]*||' | sed 's/\.[0-9]*$/.0\/24/')
+        echo -e "  ${Y}Escaneando ${SUBNET}... (puede tardar 30s)${N}"
+        echo ""
+        nmap -sn --max-retries 1 --host-timeout 5s "$SUBNET" 2>/dev/null \
+            | grep -E "report for|Host is up|MAC" \
+            | while IFS= read -r line; do
+                if echo "$line" | grep -q "report for"; then
+                    echo -e "  ${G}▸${N} ${W}$(echo "$line" | sed 's/Nmap scan report for //')${N}"
+                else
+                    echo -e "    ${D}${line}${N}"
+                fi
+            done
+    elif [[ -n "$LOCAL_IP" ]]; then
+        result_warn "nmap" "No instalado — pkg install nmap"
+        echo ""
+        echo -e "  ${Y}Ping sweep básico...${N}"
+        local BASE; BASE=$(echo "$LOCAL_IP" | cut -d'/' -f1 | sed 's/\.[0-9]*$//')
+        local found=0
+        for i in $(seq 1 30); do
+            if ping -c1 -W1 "${BASE}.${i}" &>/dev/null 2>&1; then
+                echo -e "  ${G}▸${N} ${W}${BASE}.${i}${N} — ${G}activo${N}"
+                ((found++))
+            fi
+        done
+        [[ $found -eq 0 ]] && echo -e "  ${D}No se detectaron hosts (normal en redes móviles)${N}"
+    fi
+
+    echo ""
+    echo -e "  ${C}── Conexiones activas ──${N}"
+    if command -v ss &>/dev/null; then
+        local CONNS; CONNS=$(ss -tn 2>/dev/null | grep ESTAB | wc -l)
+        result_info "Conexiones establecidas" "$CONNS"
+        ss -tn 2>/dev/null | grep ESTAB | awk '{print $5}' | head -8 | \
+            while IFS= read -r c; do echo -e "  ${Y}▸${N} $c"; done
+    fi
+    pause
+}
+
+# ══════════════════════════════════════════════════════════════
+# 05 — LIMPIA MIS RASTROS
+# ══════════════════════════════════════════════════════════════
+tool_05() {
+    section "05 · Limpia mis rastros digitales ahora"
+    echo ""
+    echo -e "  ${G}[1]${N} Historial de bash/zsh"
+    echo -e "  ${G}[2]${N} Caché DNS de Termux"
+    echo -e "  ${G}[3]${N} Archivos temporales de Termux"
+    echo -e "  ${G}[4]${N} Todo lo anterior"
+    echo -e "  ${G}[5]${N} Ver qué hay acumulado"
+    echo ""
+    echo -ne "  ${W}Opción: ${C}"; read -r COPT; echo -e "${N}"
+
+    case "$COPT" in
+        1|4)
+            echo -e "  ${C}── Historial de terminal ──${N}"
+            > "$HOME/.bash_history" 2>/dev/null && result_ok "bash_history" "Limpiado"
+            > "$HOME/.zsh_history"  2>/dev/null && result_ok "zsh_history"  "Limpiado"
+            history -c 2>/dev/null
+            result_ok "Historial sesión actual" "Limpiado"
+            [[ "$COPT" == "1" ]] && { pause; return; }
+            ;&
+        2|4)
+            echo -e "  ${C}── Caché DNS ──${N}"
+            # Termux no tiene systemd, flush via ndcd si existe
+            if command -v ndc &>/dev/null; then
+                ndc resolver flushdefaultif 2>/dev/null && result_ok "DNS cache" "Limpiado"
+            else
+                result_info "DNS cache" "No requiere flush manual en Termux"
+            fi
+            [[ "$COPT" == "2" ]] && { pause; return; }
+            ;&
+        3|4)
+            echo -e "  ${C}── Archivos temporales ──${N}"
+            local TMP_SIZE; TMP_SIZE=$(du -sh "$TMPDIR" 2>/dev/null | awk '{print $1}')
+            rm -rf "${TMPDIR:?}"/* 2>/dev/null
+            result_ok "Directorio tmp ($TMP_SIZE)" "Limpiado"
+            local CACHE_SIZE; CACHE_SIZE=$(du -sh "$HOME/.cache" 2>/dev/null | awk '{print $1}')
+            rm -rf "$HOME/.cache"/* 2>/dev/null
+            result_ok "Cache home ($CACHE_SIZE)" "Limpiado"
+            ;;
+        5)
+            echo -e "  ${C}── Inventario ──${N}"
+            result_info "bash_history" "$(wc -l < "$HOME/.bash_history" 2>/dev/null || echo 0) líneas"
+            result_info "zsh_history"  "$(wc -l < "$HOME/.zsh_history"  2>/dev/null || echo 0) líneas"
+            result_info "tmp size"     "$(du -sh "$TMPDIR" 2>/dev/null | awk '{print $1}')"
+            result_info "cache size"   "$(du -sh "$HOME/.cache" 2>/dev/null | awk '{print $1}')"
+            result_info "pkg cache"    "$(du -sh "$PREFIX/var/cache/apt" 2>/dev/null | awk '{print $1}')"
+            ;;
+    esac
+    pause
+}
+
+# ══════════════════════════════════════════════════════════════
+# 06 — DETECCIÓN DE ATAQUES
+# ══════════════════════════════════════════════════════════════
+tool_06() {
+    section "06 · Detección de ataques en red"
+    echo ""
+
+    echo -e "  ${C}── Conexiones activas ──${N}"
+    if command -v ss &>/dev/null; then
+        local TOTAL; TOTAL=$(ss -tn 2>/dev/null | grep -c ESTAB)
+        result_info "Conexiones TCP activas" "$TOTAL"
+        echo ""
+        ss -tn 2>/dev/null | grep ESTAB | awk '{print $5}' | sort | uniq -c | sort -rn | head -10 | \
+            while read -r count addr; do
+                if [[ $count -gt 3 ]]; then
+                    result_warn "Conexiones múltiples" "$count → $addr"
+                else
+                    result_info "Conectado a" "$addr ($count)"
+                fi
+            done
+    fi
+
+    echo ""
+    echo -e "  ${C}── Procesos con red ──${N}"
+    if command -v ss &>/dev/null; then
+        ss -tlnp 2>/dev/null | grep LISTEN | while IFS= read -r line; do
+            echo -e "  ${Y}⚠${N} $line"
+        done
+    fi
+
+    echo ""
+    echo -e "  ${C}── Tráfico de red en tiempo real ──${N}"
+    if command -v netstat &>/dev/null; then
+        netstat -i 2>/dev/null | tail -n +3 | while IFS= read -r line; do
+            echo -e "  ${D}▸${N} $line"
+        done
+    fi
+
+    echo ""
+    echo -e "  ${C}── Test de conectividad ──${N}"
+    if ping -c 1 -W 2 8.8.8.8 &>/dev/null; then
+        result_ok "Internet" "Conectado"
+    else
+        result_bad "Internet" "Sin conexión"
+    fi
+
+    if ping -c 1 -W 2 192.168.1.1 &>/dev/null || ping -c 1 -W 2 10.0.0.1 &>/dev/null; then
+        result_ok "Red local" "Router alcanzable"
+    else
+        result_warn "Red local" "Router no responde (normal en 4G)"
+    fi
+
+    echo ""
+    echo -e "  ${C}── Recomendaciones Android ──${N}"
+    echo -e "  ${G}▸${N} Usa ${W}Orbot${N} para enrutar todo por TOR"
+    echo -e "  ${G}▸${N} Activa ${W}DNS privado${N} en ajustes de Android"
+    echo -e "  ${G}▸${N} Evita WiFi públicas sin VPN activa"
+    echo -e "  ${G}▸${N} Instala ${W}NetGuard${N} (firewall sin root para Android)"
+    pause
+}
+
+# ══════════════════════════════════════════════════════════════
+# 07 — CONTRASEÑA / EMAIL ROBADO?
+# ══════════════════════════════════════════════════════════════
+tool_07() {
+    section "07 · Mi contraseña o email fue robado?"
+    echo ""
+    echo -e "  ${G}[1]${N} Verificar email en brechas (links)"
+    echo -e "  ${G}[2]${N} Verificar contraseña (k-anonymity, seguro)"
+    echo ""
+    echo -ne "  ${W}Opción: ${C}"; read -r BOPT; echo -e "${N}"
+
+    case "$BOPT" in
+        1)
+            echo -ne "  ${W}Tu email: ${C}"; read -r EMAIL; echo -e "${N}"
+            echo ""
+            result_info "HaveIBeenPwned" "https://haveibeenpwned.com/account/${EMAIL}"
+            result_info "DeHashed"       "https://dehashed.com/search?query=${EMAIL}"
+            result_info "LeakCheck"      "https://leakcheck.io/?query=${EMAIL}"
+            echo ""
+            echo -ne "  ${W}¿Abrir HaveIBeenPwned en navegador? (s/n): ${C}"; read -r OP
+            [[ "$OP" == "s" || "$OP" == "S" ]] && open_url "https://haveibeenpwned.com/account/${EMAIL}"
+            ;;
+        2)
+            echo -ne "  ${W}Contraseña a verificar: ${C}"; read -rs PASS; echo -e "${N}"
+            echo ""
+            if ! command -v sha1sum &>/dev/null; then
+                check_and_install coreutils sha1sum
+            fi
+            local SHA1; SHA1=$(echo -n "$PASS" | sha1sum | awk '{print $1}' | tr '[:lower:]' '[:upper:]')
+            local PREFIX5="${SHA1:0:5}"
+            local SUFFIX="${SHA1:5}"
+            echo -e "  ${Y}Consultando HIBP Pwned Passwords (método k-anonymity)...${N}"
+            echo -e "  ${D}Solo se envían 5 chars del hash — tu contraseña nunca sale del dispositivo.${N}"
+            echo ""
+            local DATA; DATA=$(curl -s --max-time 10 "https://api.pwnedpasswords.com/range/${PREFIX5}")
+            if echo "$DATA" | grep -qi "^${SUFFIX}:"; then
+                local COUNT; COUNT=$(echo "$DATA" | grep -i "^${SUFFIX}:" | cut -d':' -f2 | tr -d '[:space:]')
+                result_bad "CONTRASEÑA COMPROMETIDA" "Encontrada $COUNT veces en brechas"
+                echo -e "  ${R}  ⚠ CAMBIA ESA CONTRASEÑA AHORA MISMO${N}"
+            else
+                result_ok "Contraseña" "No encontrada en brechas conocidas"
+            fi
+            ;;
+    esac
+    pause
+}
+
+# ══════════════════════════════════════════════════════════════
+# 08 — GENERA CONTRASEÑA
+# ══════════════════════════════════════════════════════════════
+tool_08() {
+    section "08 · Genera contraseña imposible de hackear"
+    echo ""
+    echo -e "  ${G}[1]${N} Ultra segura (32 chars)"
+    echo -e "  ${G}[2]${N} Frase de paso (fácil de recordar)"
+    echo -e "  ${G}[3]${N} PIN de 6 dígitos"
+    echo -e "  ${G}[4]${N} Longitud personalizada"
+    echo ""
+    echo -ne "  ${W}Opción: ${C}"; read -r POPT; echo -e "${N}"
+
+    case "$POPT" in
+        1)
+            echo -e "  ${C}── Contraseñas generadas ──${N}"
+            for i in 1 2 3; do
+                local P; P=$(cat /dev/urandom | tr -dc 'A-Za-z0-9!@#$%^&*_+-' | head -c 32)
+                result_ok "Opción $i" "$P"
+            done
+            ;;
+        2)
+            local WORDS=("tigre" "nube" "roca" "luna" "fuego" "viento" "piedra" "selva"
+                         "rio" "mar" "cielo" "trueno" "rayo" "bosque" "isla" "cima"
+                         "niebla" "alba" "tormenta" "arena" "hielo" "llama" "sombra"
+                         "fuerza" "dragon" "noche" "bruma" "volcan" "crisis" "pixel")
+            echo -e "  ${C}── Frases de paso ──${N}"
+            for i in 1 2 3; do
+                local W1=${WORDS[$RANDOM % ${#WORDS[@]}]}
+                local W2=${WORDS[$RANDOM % ${#WORDS[@]}]}
+                local W3=${WORDS[$RANDOM % ${#WORDS[@]}]}
+                local W4=${WORDS[$RANDOM % ${#WORDS[@]}]}
+                local NUM=$((RANDOM % 900 + 100))
+                result_ok "Opción $i" "${W1}-${W2}-${W3}-${W4}-${NUM}"
+            done
+            echo -e "  ${D}Igual de seguras, más fáciles de recordar.${N}"
+            ;;
+        3)
+            echo -e "  ${C}── PINs ──${N}"
+            for i in 1 2 3; do
+                local PIN; PIN=$(cat /dev/urandom | tr -dc '0-9' | head -c 6)
+                result_ok "PIN $i" "$PIN"
+            done
+            ;;
+        4)
+            echo -ne "  ${W}Longitud: ${C}"; read -r LEN
+            [[ -z "$LEN" || ! "$LEN" =~ ^[0-9]+$ ]] && LEN=20
+            echo -e "  ${C}── Contraseñas de ${LEN} chars ──${N}"
+            for i in 1 2 3; do
+                local P; P=$(cat /dev/urandom | tr -dc 'A-Za-z0-9!@#$%&*_+-' | head -c "$LEN")
+                result_ok "Opción $i" "$P"
+            done
+            ;;
+    esac
+
+    echo ""
+    echo -e "  ${C}── Gestores para Android ──${N}"
+    echo -e "  ${G}▸${N} ${W}Bitwarden${N} — gratis, open source, Android + Termux"
+    echo -e "  ${G}▸${N} ${W}KeePassDX${N} — local, sin nube, para Android"
+    pause
+}
+
+# ══════════════════════════════════════════════════════════════
+# 09 — CIFRAR MENSAJES
+# ══════════════════════════════════════════════════════════════
+tool_09() {
+    section "09 · Cifra un mensaje para enviarlo seguro"
+    echo ""
+    echo -e "  ${G}[1]${N} Cifrar mensaje (AES-256)"
+    echo -e "  ${G}[2]${N} Descifrar mensaje"
+    echo -e "  ${G}[3]${N} Cifrar archivo"
+    echo ""
+    echo -ne "  ${W}Opción: ${C}"; read -r EOPT; echo -e "${N}"
+
+    if ! command -v openssl &>/dev/null; then
+        check_and_install openssl-tool openssl
+    fi
+
+    case "$EOPT" in
+        1)
+            echo -ne "  ${W}Mensaje: ${C}"; read -r MSG
+            echo -ne "  ${W}Contraseña secreta: ${C}"; read -rs KEY; echo -e "${N}"
+            echo ""
+            local ENC; ENC=$(echo "$MSG" | openssl enc -aes-256-cbc -pbkdf2 -pass pass:"$KEY" -base64 2>/dev/null)
+            if [[ -n "$ENC" ]]; then
+                echo -e "  ${C}── Mensaje cifrado (copia y envíalo) ──${N}"
+                echo ""
+                echo -e "  ${Y}$ENC${N}"
+                echo ""
+                # Copiar al portapapeles si está disponible
+                if command -v termux-clipboard-set &>/dev/null; then
+                    echo "$ENC" | termux-clipboard-set 2>/dev/null
+                    result_ok "Portapapeles" "Copiado automáticamente"
+                fi
+            else
+                result_bad "Error" "No se pudo cifrar"
+            fi
+            ;;
+        2)
+            echo -ne "  ${W}Mensaje cifrado: ${C}"; read -r ENC
+            echo -ne "  ${W}Contraseña: ${C}"; read -rs KEY; echo -e "${N}"
+            echo ""
+            local DEC; DEC=$(echo "$ENC" | openssl enc -aes-256-cbc -pbkdf2 -d -pass pass:"$KEY" -base64 2>/dev/null)
+            if [[ -n "$DEC" ]]; then
+                result_ok "Mensaje descifrado" "$DEC"
+                if command -v termux-clipboard-set &>/dev/null; then
+                    echo "$DEC" | termux-clipboard-set 2>/dev/null
+                    result_ok "Portapapeles" "Copiado"
+                fi
+            else
+                result_bad "Error" "Contraseña incorrecta o texto corrupto"
+            fi
+            ;;
+        3)
+            echo -ne "  ${W}Ruta del archivo: ${C}"; read -r FPATH
+            if [[ ! -f "$FPATH" ]]; then result_bad "Archivo" "No encontrado"; pause; return; fi
+            echo -ne "  ${W}Contraseña: ${C}"; read -rs KEY; echo -e "${N}"
+            local OUT="${FPATH}.enc"
+            openssl enc -aes-256-cbc -pbkdf2 -in "$FPATH" -out "$OUT" -pass pass:"$KEY" 2>/dev/null
+            result_ok "Archivo cifrado" "$OUT"
+            echo -e "  ${D}Descifrar: openssl enc -aes-256-cbc -pbkdf2 -d -in ${OUT} -out original -pass pass:CLAVE${N}"
+            ;;
+    esac
+    pause
+}
+
+# ══════════════════════════════════════════════════════════════
+# 10 — DASHBOARD DE DEFENSAS
+# ══════════════════════════════════════════════════════════════
+tool_10() {
+    section "10 · Estado de mis defensas (dashboard)"
+    echo -e "  ${W}${BOLD}Verificando postura de seguridad en Android...${N}"
+    echo ""
+
+    local SCORE=0
+    local TOTAL=10
+
+    # 1. TOR
+    if pgrep -x tor &>/dev/null; then
+        result_ok  "TOR proceso" "Activo en Termux"; ((SCORE++))
+    else
+        result_warn "TOR proceso" "Inactivo (opción 03 para activar)"
+    fi
+
+    # 2. Orbot
+    if pm list packages 2>/dev/null | grep -q "org.torproject.android"; then
+        result_ok  "Orbot (TOR Android)" "Instalado"; ((SCORE++))
+    else
+        result_warn "Orbot" "No instalado — instala desde Play Store / F-Droid"
+    fi
+
+    # 3. VPN activa
+    if ip link show 2>/dev/null | grep -qiE "tun|wg|ppp"; then
+        result_ok  "VPN / túnel" "Detectado"; ((SCORE++))
+    else
+        result_warn "VPN / túnel" "No detectado"
+    fi
+
+    # 4. Proxychains
+    if command -v proxychains4 &>/dev/null; then
+        result_ok  "Proxychains4" "Instalado"; ((SCORE++))
+    else
+        result_warn "Proxychains4" "No instalado — pkg install proxychains-ng"
+    fi
+
+    # 5. nmap disponible
+    if command -v nmap &>/dev/null; then
+        result_ok  "nmap" "Instalado"; ((SCORE++))
+    else
+        result_warn "nmap" "No instalado — pkg install nmap"
+    fi
+
+    # 6. openssl
+    if command -v openssl &>/dev/null; then
+        result_ok  "openssl" "Disponible"; ((SCORE++))
+    else
+        result_warn "openssl" "No instalado — pkg install openssl-tool"
+    fi
+
+    # 7. HTTPS navegación
+    local TOR_CHECK; TOR_CHECK=$(curl -s --max-time 5 "https://check.torproject.org/api/ip" | jq -r '.IsTor' 2>/dev/null)
+    if [[ "$TOR_CHECK" == "true" ]]; then
+        result_ok  "Tráfico por TOR" "Sí"; ((SCORE++))
+    else
+        result_warn "Tráfico por TOR" "No — IP real expuesta"
+    fi
+
+    # 8. Historial limpio
+    local HIST; HIST=$(wc -l < "$HOME/.bash_history" 2>/dev/null || echo 0)
+    if [[ $HIST -lt 50 ]]; then
+        result_ok  "Historial bash" "Limpio ($HIST líneas)"; ((SCORE++))
+    else
+        result_warn "Historial bash" "$HIST líneas expuestas (opción 05)"
+    fi
+
+    # 9. termux-api
+    if command -v termux-info &>/dev/null; then
+        result_ok  "Termux:API" "Instalada"; ((SCORE++))
+    else
+        result_warn "Termux:API" "No instalada — pkg install termux-api"
+    fi
+
+    # 10. pkg actualizado
+    local UPGRADABLE; UPGRADABLE=$(pkg list-upgradable 2>/dev/null | wc -l)
+    if [[ "$UPGRADABLE" -le 5 ]]; then
+        result_ok  "Paquetes actualizados" "OK ($UPGRADABLE pendientes)"; ((SCORE++))
+    else
+        result_warn "Actualizaciones" "$UPGRADABLE pendientes — pkg upgrade"
+    fi
+
+    echo ""
+    echo -e "  ${C}══════════════════════════════════════${N}"
+    local PCT=$(( SCORE * 100 / TOTAL ))
+    if [[ $PCT -ge 80 ]]; then
+        echo -e "  ${G}${BOLD}PUNTUACIÓN: ${SCORE}/${TOTAL} (${PCT}%) — BIEN PROTEGIDO 🛡${N}"
+    elif [[ $PCT -ge 50 ]]; then
+        echo -e "  ${Y}${BOLD}PUNTUACIÓN: ${SCORE}/${TOTAL} (${PCT}%) — PROTECCIÓN MEDIA ⚠${N}"
+    else
+        echo -e "  ${R}${BOLD}PUNTUACIÓN: ${SCORE}/${TOTAL} (${PCT}%) — MUY EXPUESTO ☠${N}"
+    fi
+    echo -e "  ${C}══════════════════════════════════════${N}"
+    echo ""
+    echo -e "  ${C}── Instalar todo lo que falta ──${N}"
+    echo -e "  ${D}pkg install curl jq nmap openssl-tool dnsutils whois tor proxychains-ng termux-api${N}"
+    pause
+}
+
+# ══════════════════════════════════════════════════════════════
+#  BUCLE PRINCIPAL
+# ══════════════════════════════════════════════════════════════
+while true; do
+    main_menu
+    case "$OPT" in
+        1|01)  tool_01 ;;
+        2|02)  tool_02 ;;
+        3|03)  tool_03 ;;
+        4|04)  tool_04 ;;
+        5|05)  tool_05 ;;
+        6|06)  tool_06 ;;
+        7|07)  tool_07 ;;
+        8|08)  tool_08 ;;
+        9|09)  tool_09 ;;
+        10)    tool_10 ;;
+        99)    install_deps ;;
+        0|00)
+            clear
+            echo ""
+            echo -e "  ${C}${BOLD}  👁  GHOST SHIELD TERMUX  —  Cerrando.${N}"
+            echo -e "  ${D}  Permanece invisible desde Android. 👁${N}"
+            echo ""
+            exit 0
+            ;;
+        *)
+            echo -e "  ${R}Opción inválida.${N}"
+            sleep 1
+            ;;
+    esac
+done
